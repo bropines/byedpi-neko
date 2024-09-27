@@ -1,5 +1,4 @@
 name: Release Build
-
 on:
   workflow_dispatch:
     inputs:
@@ -12,44 +11,18 @@ on:
       publish:
         description: 'Publish: If want ignore'
         required: false
-
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      # Проверим наличие директории js
-      - name: List directories in project root for debug
-        run: |
-          echo "Список директорий в корне:"
-          ls -la
-
-      # Шаг с установкой зависимостей только если директория js существует
-      - name: Install Node.js dependencies (если js директория существует)
-        if: ${{ runner.os == 'Linux' && (steps.check.outputs.directoryExists == 'true') }}
-        run: npm install
-        working-directory: ./js
-
-      - name: Fix npm vulnerabilities
-        if: ${{ runner.os == 'Linux' && (steps.check.outputs.directoryExists == 'true') }}
-        run: npm audit fix
-        working-directory: ./js
-
-      - name: Update browserslist database
-        if: ${{ runner.os == 'Linux' && (steps.check.outputs.directoryExists == 'true') }}
-        run: npx browserslist@latest --update-db
-        working-directory: ./js
-
       - name: Gradle cache
         uses: actions/cache@v3
         with:
           path: ~/.gradle
           key: gradle-${{ hashFiles('**/*.gradle.kts') }}
-
       - name: Release Build
         run: |
           export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
@@ -58,43 +31,28 @@ jobs:
           APK=$(find . -name '*arm64-v8a*.apk')
           APK=$(dirname $APK)
           echo "APK=$APK" >> $GITHUB_ENV
-
-      - name: Проверка наличия main.js
-        run: |
-          if [ ! -f "./plugin_ByeDPI/main.js" ]; then
-            echo "Файл main.js не найден!"
-            exit 1
-          fi
-        working-directory: ./js
-
-      - name: Upload APKs as artifacts
-        uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v3
         with:
           name: APKs
           path: ${{ env.APK }}
-
   publish:
     name: Publish Release
     if: github.event.inputs.publish != 'y'
     runs-on: ubuntu-latest
     needs: build
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Download build artifacts
+      - name: Donwload Artifacts
         uses: actions/download-artifact@v3
         with:
           name: APKs
           path: artifacts
-
       - name: Find APKs
         run: |
           mkdir -p apks/
           find artifacts/ -name "*.apk" -exec cp {} apks/ \;
-
-      - name: Release APK to GitHub
+      - name: Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -102,3 +60,11 @@ jobs:
           file: ./apks/*
           file_glob: true
           prerelease: true
+      # - name: Release
+      #   run: |
+      #     wget -O ghr.tar.gz https://github.com/tcnksm/ghr/releases/download/v0.16.0/ghr_v0.16.0_linux_amd64.tar.gz
+      #     tar -xvf ghr.tar.gz
+      #     mv ghr*linux_amd64/ghr .
+      #     mkdir apks
+      #     find artifacts -name "*.apk" -exec cp {} apks \;
+      #     ./ghr -delete -prerelease -t "${{ github.token }}" -n "${{ github.event.inputs.tag }}" "${{ github.event.inputs.tag }}" apks
