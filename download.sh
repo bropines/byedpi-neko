@@ -29,4 +29,4 @@ download_ciadpi() {
   unzip_ciadpi x86_64 x86_64
 }
 
-download_"$1"
+download_ciadpi
