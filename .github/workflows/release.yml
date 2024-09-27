@@ -22,19 +22,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '16'
+      # Здесь устанавливаем рабочую директорию вручную
+      - name: Set working directory to correct path
+        run: |
+          cd js
+        working-directory: ./js
 
       - name: Install Node.js dependencies
         run: npm install
+        working-directory: ./js
 
       - name: Fix npm vulnerabilities
         run: npm audit fix
+        working-directory: ./js
 
       - name: Update browserslist database
         run: npx browserslist@latest --update-db
+        working-directory: ./js
 
       - name: Gradle cache
         uses: actions/cache@v3
@@ -50,13 +54,15 @@ jobs:
           APK=$(find . -name '*arm64-v8a*.apk')
           APK=$(dirname $APK)
           echo "APK=$APK" >> $GITHUB_ENV
+        working-directory: ./js
 
       - name: Проверка наличия main.js
         run: |
-          if [ ! -f "./js/plugin_ByeDPI/main.js" ]; then
+          if [ ! -f "./plugin_ByeDPI/main.js" ]; then
             echo "Файл main.js не найден!"
             exit 1
           fi
+        working-directory: ./js
 
       - name: Upload APKs as artifacts
         uses: actions/upload-artifact@v3
