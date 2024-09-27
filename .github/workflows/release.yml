@@ -22,21 +22,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Здесь устанавливаем рабочую директорию вручную
-      - name: Set working directory to correct path
+      # Проверим наличие директории js
+      - name: List directories in project root for debug
         run: |
-          cd js
-        working-directory: ./js
+          echo "Список директорий в корне:"
+          ls -la
 
-      - name: Install Node.js dependencies
+      # Шаг с установкой зависимостей только если директория js существует
+      - name: Install Node.js dependencies (если js директория существует)
+        if: ${{ runner.os == 'Linux' && (steps.check.outputs.directoryExists == 'true') }}
         run: npm install
         working-directory: ./js
 
       - name: Fix npm vulnerabilities
+        if: ${{ runner.os == 'Linux' && (steps.check.outputs.directoryExists == 'true') }}
         run: npm audit fix
         working-directory: ./js
 
       - name: Update browserslist database
+        if: ${{ runner.os == 'Linux' && (steps.check.outputs.directoryExists == 'true') }}
         run: npx browserslist@latest --update-db
         working-directory: ./js
 
@@ -54,7 +58,6 @@ jobs:
           APK=$(find . -name '*arm64-v8a*.apk')
           APK=$(dirname $APK)
           echo "APK=$APK" >> $GITHUB_ENV
-        working-directory: ./js
 
       - name: Проверка наличия main.js
         run: |
@@ -99,12 +102,3 @@ jobs:
           file: ./apks/*
           file_glob: true
           prerelease: true
-
-      # - name: Release
-      #   run: |
-      #     wget -O ghr.tar.gz https://github.com/tcnksm/ghr/releases/download/v0.16.0/ghr_v0.16.0_linux_amd64.tar.gz
-      #     tar -xvf ghr.tar.gz
-      #     mv ghr*linux_amd64/ghr .
-      #     mkdir apks
-      #     find artifacts -name "*.apk" -exec cp {} apks \;
-      #     ./ghr -delete -prerelease -t "${{ github.token }}" -n "${{ github.event.inputs.tag }}" "${{ github.event.inputs.tag }}" apks
